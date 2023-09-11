@@ -1,51 +1,36 @@
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
+private static String submitDatabricksJob() throws IOException {
+    // Create the API endpoint URL for submitting a job
+    URL url = new URL(WORKSPACE_URL + "/jobs/runs/submit");
 
-public class DatabricksJobManager {
+    // Create a connection to the Databricks API
+    HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+    connection.setRequestMethod("POST");
+    connection.setRequestProperty("Authorization", "Bearer " + API_TOKEN);
+    connection.setRequestProperty("Content-Type", "application/json");
+    connection.setDoOutput(true);
 
-    private static final String API_TOKEN = "YOUR_DATABRICKS_API_TOKEN";
-    private static final String WORKSPACE_URL = "https://<YOUR_WORKSPACE_URL>/api/2.0";
-    private static final String CLUSTER_ID = "YOUR_CLUSTER_ID";
-    private static final String JOB_ID = "YOUR_JOB_ID";
+    // JSON payload for job submission with parameters
+    String payload = "{\"job_id\": \"" + JOB_ID + "\", \"cluster_id\": \"" + CLUSTER_ID + "\", \"notebook_params\": {\"param_name\": \"param_value\"}}";
 
-    public static void main(String[] args) throws IOException {
-        // Step 1: Submit a Databricks job with parameters
-        String runId = submitDatabricksJob();
-        System.out.println("Job submitted. Run ID: " + runId);
-
-        // Step 2: Get the status of the submitted job using the run ID
-        String status = getJobStatus(runId);
-        System.out.println("Job Status: " + status);
+    // Write the payload to the request
+    try (OutputStream os = connection.getOutputStream()) {
+        byte[] input = payload.getBytes("utf-8");
+        os.write(input, 0, input.length);
     }
 
-    private static String submitDatabricksJob() throws IOException {
-        // ... (Same as previous code)
-    }
-
-    private static String getJobStatus(String runId) throws IOException {
-        // Create the API endpoint URL for getting job status
-        URL url = new URL(WORKSPACE_URL + "/jobs/runs/get?run_id=" + runId);
-
-        // Create a connection to the Databricks API
-        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-        connection.setRequestMethod("GET");
-        connection.setRequestProperty("Authorization", "Bearer " + API_TOKEN);
-
-        // Get the response from the API
-        try (BufferedReader br = new BufferedReader(new InputStreamReader(connection.getInputStream(), "utf-8"))) {
-            StringBuilder response = new StringBuilder();
-            String responseLine;
-            while ((responseLine = br.readLine()) != null) {
-                response.append(responseLine.trim());
-            }
-            return response.toString();
-        } finally {
-            connection.disconnect();
+    // Get the response from the API
+    try (BufferedReader br = new BufferedReader(new InputStreamReader(connection.getInputStream(), "utf-8"))) {
+        StringBuilder response = new StringBuilder();
+        String responseLine;
+        while ((responseLine = br.readLine()) != null) {
+            response.append(responseLine.trim());
         }
+
+        // Extract the job ID from the response
+        JSONObject jsonResponse = new JSONObject(response.toString());
+        String runId = jsonResponse.getString("run_id");
+        return runId;
+    } finally {
+        connection.disconnect();
     }
 }
-
