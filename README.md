@@ -1,34 +1,57 @@
-import org.apache.spark.SparkConf
-import org.apache.spark.scheduler.SparkListener
-import org.apache.spark.scheduler.SparkListenerEvent
-import org.apache.spark.scheduler.SparkListenerTabAttached
-import org.apache.spark.sql.SparkSession
+If you want to run a Bash script inside Databricks using Python code, you can use the Databricks REST API. Here's a high-level outline of the steps to do this:
 
-// Create a Spark configuration
-val conf = new SparkConf()
-  .setAppName("CustomTabListenerExample")
+1. **Authenticate**: You need to authenticate to your Databricks workspace using a Databricks personal access token or some other authentication method. You can use the `requests` library in Python to make API requests.
 
-// Create a Spark session
-val spark = SparkSession.builder.config(conf).getOrCreate()
+2. **Create a Python Script**: Write Python code to send an HTTP POST request to the Databricks Jobs API to create a job. You will need to specify the Bash script as a task in the job.
 
-// Define a custom Spark listener by extending the SparkListener class
-class CustomTabSparkListener extends SparkListener {
-  override def onOtherEvent(event: SparkListenerEvent): Unit = {
-    event match {
-      case tabAttached: SparkListenerTabAttached =>
-        // Define your custom tab's name and content here
-        val customTabName = "Custom Tab"
-        val customTabContent = s"""
-          <iframe src="/custom-tab" width="100%" height="800" frameborder="0"></iframe>
-        """
-        
-        // Add the custom tab to the Spark UI
-        tabAttached.attachTab(customTabName, customTabContent)
-      case _ =>
-    }
-  }
+Here's an example of Python code that creates a job to run a Bash script:
+
+```python
+import requests
+
+# Set your Databricks workspace URL and personal access token
+workspace_url = "https://<databricks-instance>.cloud.databricks.com/api/2.0"
+token = "your-access-token"
+
+# Define your Bash script
+bash_script = """
+#!/bin/bash
+echo "Hello, Databricks!"
+# Add your Bash commands here
+"""
+
+# Define the job configuration
+job_config = {
+    "name": "Bash Job",
+    "new_cluster": {
+        "spark_version": "8.0.x-scala2.12",
+        "node_type_id": "Standard_DS3_v2",
+    },
+    "tasks": [
+        {
+            "task_key": "bash_task",
+            "notebook_task": {
+                "base_parameters": {"bash_script": bash_script},
+                "notebook_path": "/Users/your_username/your_notebook",
+            },
+        },
+    ],
 }
 
-// Create an instance of your custom listener and register it with the Spark session
-val customListener = new CustomTabSparkListener()
-spark.sparkContext.addSparkListener(customListener)
+# Send the HTTP POST request to create the job
+response = requests.post(
+    f"{workspace_url}/jobs/create",
+    headers={"Authorization": f"Bearer {token}"},
+    json=job_config,
+)
+
+# Check the response for success or error
+if response.status_code == 200:
+    print("Job created successfully.")
+else:
+    print("Error creating the job:", response.text)
+```
+
+Make sure to replace `<databricks-instance>`, `your-access-token`, `your_username`, and `your_notebook` with your actual Databricks instance details and notebook path.
+
+This Python code creates a job that runs the Bash script on a Databricks cluster. You can monitor the job's status and retrieve the results using the Databricks REST API as well.
